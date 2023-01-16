@@ -137,6 +137,22 @@ def zero_everything(
             state.grid_mv[grid_x, grid_y, grid_z] = wp.vec3(0.0)
             state.grid_v[grid_x, grid_y, grid_z] = wp.vec3(0.0)
 
+@wp.kernel
+def set_optim_variables(
+    state: MPMStateStruct,
+    grid_m: wp.array(dtype=float, ndim=3),
+    grid_dim_x: int,
+    grid_dim_y: int,
+    grid_dim_z: int,
+):
+    tid = wp.tid()
+
+    grid_x = tid / grid_dim_z / grid_dim_y
+    grid_y = (tid / grid_dim_z) % grid_dim_y
+    grid_z = tid % grid_dim_z
+
+    if grid_x < grid_dim_x and grid_y < grid_dim_y and grid_z < grid_dim_z:
+        state.grid_m[grid_x, grid_y, grid_z] = grid_m[grid_x, grid_y, grid_z]
 
 @wp.kernel
 def compute_grid_bound(model: MPMModelStruct, state: MPMStateStruct):

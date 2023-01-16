@@ -1,5 +1,8 @@
 import warp as wp
 import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
 from mpm.mpm_model import MPMModelBuilder, mpm_collide, Mesh, DenseVolume
 from mpm.mpm_integrator import (
     compute_grid_bound,
@@ -13,6 +16,7 @@ from mpm.mpm_integrator import (
     MPMModel,
     MPMState,
     zero_everything,
+    set_optim_variables,
 )
 import os
 
@@ -45,6 +49,24 @@ class Simulator:
                 model.struct.grid_dim_z,
                 model.struct.n_particles,
                 model.body_count,
+            ],
+            device=self.device,
+        )
+
+        grid_m = torch.zeros([model.struct.grid_dim_x, model.struct.grid_dim_y, model.struct.grid_dim_z], dtype=torch.float32, device=self.device, requires_grad=True)
+        wp.launch(
+            set_optim_variables,
+            dim=int(
+                model.struct.grid_dim_x
+                * model.struct.grid_dim_y
+                * model.struct.grid_dim_z
+            ),
+            inputs=[
+                state_in.struct,
+                wp.torch.from_torch(grid_m),
+                model.struct.grid_dim_x,
+                model.struct.grid_dim_y,
+                model.struct.grid_dim_z,
             ],
             device=self.device,
         )
@@ -352,6 +374,8 @@ class App:
     def render(self):
         if self.renderer:
             self.renderer.begin_frame(self.sim_time)
+
+            # print(self.state_0.struct.grid_m)
 
             body_q = (
                 self.state_0.body_q.numpy() if self.state_0.body_q is not None else None
